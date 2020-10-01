@@ -3,6 +3,8 @@ package com.introid.firestore_practice
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
+import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.firestore.ktx.toObject
 import com.google.firebase.ktx.Firebase
@@ -32,8 +34,27 @@ class MainActivity : AppCompatActivity() {
             savePerson(person)
         }
 
-        btnRetrieveData.setOnClickListener {
-            retrievePerson()
+        subscribeToRealtimeUpdates()
+
+//        btnRetrieveData.setOnClickListener {
+//            retrievePerson()
+//        }
+    }
+
+    private fun subscribeToRealtimeUpdates(){
+        personCollectionRef.addSnapshotListener{ querySnapshot, firebaseFirestoreException ->
+            firebaseFirestoreException?.let {
+                Toast.makeText(this, it.message , Toast.LENGTH_LONG).show()
+                return@addSnapshotListener
+            }
+            querySnapshot?.let{
+                val sb = StringBuilder()
+                for (document in it){
+                    val person = document.toObject<Person>()
+                    sb.append("$person\n")
+                }
+                tvPersons.text = sb.toString()
+            }
         }
     }
 
