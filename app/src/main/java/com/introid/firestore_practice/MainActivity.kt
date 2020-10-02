@@ -44,6 +44,11 @@ class MainActivity : AppCompatActivity() {
         btnRetrieveData.setOnClickListener {
             retrievePerson()
         }
+
+        btnDeletePerson.setOnClickListener {
+            val person = getOldPerson()
+            deletePerson(person)
+        }
     }
 
     private fun getOldPerson(): Person {
@@ -98,6 +103,30 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun deletePerson(person: Person) = CoroutineScope(Dispatchers.IO).launch {
+        val personQuery = personCollectionRef
+            .whereEqualTo("firstName", person.firstName)
+            .whereEqualTo("lastName", person.lastName)
+            .whereEqualTo("age", person.age)
+            .get()
+            .await()
+        if(personQuery.documents.isNotEmpty()) {
+            for(document in personQuery) {
+                try {
+                    personCollectionRef.document(document.id).delete().await()
+
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        } else {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, "No persons matched the query.", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
 
     private fun subscribeToRealtimeUpdates(){
