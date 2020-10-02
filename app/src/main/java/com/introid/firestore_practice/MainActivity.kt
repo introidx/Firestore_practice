@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.Toast
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.QuerySnapshot
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.firestore.ktx.toObject
 import com.google.firebase.ktx.Firebase
@@ -34,12 +35,70 @@ class MainActivity : AppCompatActivity() {
             savePerson(person)
         }
 
-
+        btnUpdatePerson.setOnClickListener {
+            val oldPerson = getOldPerson()
+            val newPersonMap = getNewPersonMap()
+            updatePerson(oldPerson, newPersonMap)
+        }
 
         btnRetrieveData.setOnClickListener {
             retrievePerson()
         }
     }
+
+    private fun getOldPerson(): Person {
+        val firstName = etFirstName.text.toString()
+        val lastName = etLastName.text.toString()
+        val age = etAge.text.toString().toInt()
+        return Person(firstName, lastName, age)
+    }
+
+    private fun getNewPersonMap(): Map<String, Any> {
+        val firstName = etNewFirstName.text.toString()
+        val lastName = etNewLastName.text.toString()
+        val age = etNewAge.text.toString()
+        val map = mutableMapOf<String, Any>()
+        if(firstName.isNotEmpty()) {
+            map["firstName"] = firstName
+        }
+        if(lastName.isNotEmpty()) {
+            map["lastName"] = lastName
+        }
+        if(age.isNotEmpty()) {
+            map["age"] = age.toInt()
+        }
+        return map
+    }
+
+    private fun updatePerson(person: Person, newPersonMap: Map<String, Any>) = CoroutineScope(Dispatchers.IO).launch {
+        val personQuery = personCollectionRef
+            .whereEqualTo("firstName", person.firstName)
+            .whereEqualTo("lastName", person.lastName)
+            .whereEqualTo("age", person.age)
+            .get()
+            .await()
+        if(personQuery.documents.isNotEmpty()) {
+            for(document in personQuery) {
+                try {
+                    //personCollectionRef.document(document.id).update("age", newAge).await()
+                    personCollectionRef.document(document.id).set(
+                        newPersonMap,
+                        SetOptions.merge()
+                    ).await()
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        } else {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, "No persons matched the query.", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+
 
     private fun subscribeToRealtimeUpdates(){
         personCollectionRef.addSnapshotListener{ querySnapshot, firebaseFirestoreException ->
